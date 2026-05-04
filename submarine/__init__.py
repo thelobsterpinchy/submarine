@@ -1,3 +1,5 @@
+from .agents.backend_agent import BackendAgent
+from .agents.backends import AgentBackend, BackendConfig, BackendFactory, PiBridge
 from .agents.base import Agent, AgentRunContext
 from .agents.llm import LLMClient
 from .agents.openai import make_openai_agent
@@ -18,13 +20,18 @@ from .orchestrator.interactive import (
 
 __all__ = [
     "Agent",
+    "AgentBackend",
     "AgentEvent",
     "AgentEventStatus",
     "AgentRunContext",
+    "BackendAgent",
+    "BackendConfig",
+    "BackendFactory",
     "AggregatedResult",
     "EventBus",
     "InteractiveOrchestrator",
     "LLMClient",
+    "PiBridge",
     "make_openai_agent",
     "Orchestrator",
     "OrchestratorSession",

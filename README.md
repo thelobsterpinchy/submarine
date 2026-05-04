@@ -124,11 +124,28 @@ Events emitted over stdout:
 ```text
 submarine/
 ├── agents/        Agent implementations and adapters
+│   └── backends/  Pluggable agent backends (Pi first, more later)
 ├── core/          Task, plan, and result primitives
 ├── events/        Event bus and event types
 ├── orchestrator/  Batch and interactive orchestrators
 └── serve_stdio.py JSON-RPC stdio bridge
 ```
+
+## Pluggable backends
+
+Submarine now includes a backend abstraction so the supervisor can stay stable while execution backends vary by role.
+
+Current pieces:
+- `AgentBackend` — common backend interface
+- `BackendAgent` — adapts a backend into a normal Submarine `Agent`
+- `PiBridge` — first backend bridge, aimed at Pi-style stdio agent hosts
+
+Target direction:
+- `pi`
+- `opencode`
+- `custom`
+
+This lets a future config mix backends per role while keeping the same supervisor loop.
 
 ## Examples
 

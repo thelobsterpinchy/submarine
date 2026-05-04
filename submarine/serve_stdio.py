@@ -9,7 +9,8 @@ from contextlib import suppress
 from dataclasses import asdict
 from typing import Any
 
-from submarine import InteractiveOrchestrator, LLMClient, Plan, SessionEvent, Task, make_llm_supervisor_brain, make_openai_agent
+from submarine import InteractiveOrchestrator, LLMClient, Plan, SessionEvent, Task, make_llm_supervisor_brain
+from submarine.agents.backends import make_backend_agent
 
 
 class StdioServer:
@@ -59,14 +60,36 @@ class StdioServer:
         agents = {}
         for agent in agents_payload:
             role = agent["role"]
-            agents[role] = make_openai_agent(
-                role=role,
-                model=agent.get("model", "gpt-4o-mini"),
-                system_prompt=agent.get("system_prompt"),
-                base_url=agent.get("base_url") or supervisor.get("base_url") or os.environ.get("SUBMARINE_AGENT_BASE_URL", "https://api.openai.com/v1"),
-                api_key=agent.get("api_key") or supervisor.get("api_key") or os.environ.get("SUBMARINE_AGENT_API_KEY"),
-                timeout=float(agent.get("timeout", 120)),
-            )
+            backend_type = agent.get("backend", {}).get("type") if isinstance(agent.get("backend"), dict) else None
+            if backend_type:
+                backend_config = {
+                    "type": backend_type,
+                    "model": agent.get("model") or supervisor.get("model") or os.environ.get("SUBMARINE_AGENT_MODEL"),
+                    "base_url": agent.get("base_url") or supervisor.get("base_url") or os.environ.get("SUBMARINE_AGENT_BASE_URL"),
+                    "api_key": agent.get("api_key") or supervisor.get("api_key") or os.environ.get("SUBMARINE_AGENT_API_KEY"),
+                    "timeout": agent.get("timeout", 120),
+                    "system_prompt": agent.get("system_prompt"),
+                    "command": agent.get("backend", {}).get("command") if isinstance(agent.get("backend"), dict) else None,
+                    "python_path": agent.get("backend", {}).get("python_path") if isinstance(agent.get("backend"), dict) else None,
+                    "script_module": agent.get("backend", {}).get("script_module") if isinstance(agent.get("backend"), dict) else None,
+                    "workspace": agent.get("workspace"),
+                    **agent.get("backend", {}),
+                }
+                agents[role] = make_backend_agent(
+                    role=role,
+                    config=backend_config,
+                    timeout=float(agent.get("timeout", 120)),
+                )
+            else:
+                from submarine import make_openai_agent  # noqa: F811
+                agents[role] = make_openai_agent(
+                    role=role,
+                    model=agent.get("model", "gpt-4o-mini"),
+                    system_prompt=agent.get("system_prompt"),
+                    base_url=agent.get("base_url") or supervisor.get("base_url") or os.environ.get("SUBMARINE_AGENT_BASE_URL", "https://api.openai.com/v1"),
+                    api_key=agent.get("api_key") or supervisor.get("api_key") or os.environ.get("SUBMARINE_AGENT_API_KEY"),
+                    timeout=float(agent.get("timeout", 120)),
+                )
 
         def planner(task: str, all_agents: dict[str, Any], shared_memory: dict[str, Any]) -> Plan:
             run_kind = shared_memory.get("run_kind")
