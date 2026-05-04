@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from submarine.agents.backend_agent import BackendAgent
 from submarine.agents.backends.base import AgentBackend, BackendConfig, BackendFactory
+from submarine.agents.backends.custom import CustomBridge
 from submarine.agents.backends.opencode import OpenCodeBridge
 from submarine.agents.backends.pi import PiBridge
 
@@ -11,11 +11,16 @@ from submarine.agents.backends.pi import PiBridge
 def _register_defaults(factory: BackendFactory) -> BackendFactory:
     factory.register("pi", PiBridge)
     factory.register("opencode", OpenCodeBridge)
+    factory.register("custom", CustomBridge)
     return factory
 
 
 # Global factory instance pre-registered with known backend types
 _default_factory = _register_defaults(BackendFactory())
+
+
+if TYPE_CHECKING:
+    from submarine.agents.backend_agent import BackendAgent
 
 
 def make_backend_agent(
@@ -27,7 +32,7 @@ def make_backend_agent(
     system_prompt: str | None = None,
     tools: list[str] | None = None,
     metadata: dict[str, Any] | None = None,
-) -> BackendAgent:
+) -> "BackendAgent":
     """Factory to create a ``BackendAgent`` from a config dict or ``BackendConfig``.
 
     Usage::
@@ -65,6 +70,7 @@ def make_backend_agent(
             timeout=config.get("timeout", int(timeout)),
             system_prompt=config.get("system_prompt", system_prompt),
             command=config.get("command"),
+            env=config.get("env"),
             python_path=config.get("python_path", "python3"),
             script_module=config.get("script_module", "submarine.serve_stdio"),
             workspace=config.get("workspace"),
@@ -75,6 +81,8 @@ def make_backend_agent(
 
     if cfg.model is None and model is not None:
         cfg.model = model
+
+    from submarine.agents.backend_agent import BackendAgent
 
     backend = _default_factory.create(role, cfg)
     return BackendAgent(

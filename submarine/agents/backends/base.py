@@ -96,11 +96,12 @@ class BackendConfig:
     timeout: int = 300
     system_prompt: str | None = None
     # For "custom" type
-    command: str | None = None
+    command: str | list[str] | None = None
     # For "pi" type
     python_path: str = "python3"
     script_module: str = "apps.host.src.main"
     workspace: str | None = None
+    env: dict[str, str] | None = None
     # Arbitrary extra config passed through to the backend
     extra: dict[str, Any] = field(default_factory=dict)
 

@@ -1,5 +1,5 @@
 from .backend_agent import BackendAgent
-from .backends import AgentBackend, BackendConfig, BackendFactory, PiBridge
+from .backends import AgentBackend, BackendConfig, BackendFactory, CustomBridge, OpenCodeBridge, PiBridge, make_backend_agent
 from .base import Agent, AgentRunContext
 from .llm import LLMClient
 from .mock import make_mock_agent
@@ -13,8 +13,11 @@ __all__ = [
     "BackendAgent",
     "BackendConfig",
     "BackendFactory",
+    "CustomBridge",
     "LLMClient",
+    "OpenCodeBridge",
     "PiBridge",
+    "make_backend_agent",
     "make_mock_agent",
     "make_openai_agent",
     "SubprocessAgent",
