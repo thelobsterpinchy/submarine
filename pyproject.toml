@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "submarine"
+version = "0.1.0"
+description = "Event-driven subagent orchestration library for coding tasks"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Brandon Liu" }]
+license = { text = "MIT" }
+dependencies = ["aiohttp>=3.9"]
+
+[project.urls]
+Homepage = "https://github.com/thelobsterpinchy/submarine"
+Repository = "https://github.com/thelobsterpinchy/submarine"
+Issues = "https://github.com/thelobsterpinchy/submarine/issues"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["submarine*"]
