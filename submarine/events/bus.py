@@ -27,6 +27,12 @@ class EventBus:
             return
         self._subscribers[role].append(callback)
 
+    def unsubscribe(self, role: str, callback: EventCallback) -> None:
+        if role == "*":
+            self._all_subscribers[:] = [h for h in self._all_subscribers if h is not callback]
+            return
+        self._subscribers[role][:] = [h for h in self._subscribers[role] if h is callback]
+
     async def publish(self, event: AgentEvent) -> None:
         async with self._condition:
             self._events.append(event)

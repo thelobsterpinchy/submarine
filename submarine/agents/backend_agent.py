@@ -39,10 +39,13 @@ class BackendAgent(Agent):
 
     async def _backend_handler(self, task: Task, context: AgentRunContext) -> TaskResult:
         completion: asyncio.Future[TaskResult] = asyncio.get_running_loop().create_future()
-        current_agent_id = f"backend-{self.role}-{uuid.uuid4().hex[:8]}"
+        instance_id = f"backend-{self.role}-{uuid.uuid4().hex[:8]}"
+        task_id = task.id
+        # Use a list so both nested handlers can mutate it without nonlocal issues
+        _resumed = [False]
 
-        def handler(event: AgentEvent) -> None:
-            if event.role != self.role or event.task_id != task.id:
+        def backend_event_handler(event: AgentEvent) -> None:
+            if event.role != self.role or event.task_id != task_id:
                 return
 
             asyncio.create_task(context.event_bus.publish(event))
@@ -54,7 +57,7 @@ class BackendAgent(Agent):
                 completion.set_result(
                     TaskResult(
                         task_id=task.id,
-                        agent_id=event.agent_id or current_agent_id,
+                        agent_id=event.agent_id or instance_id,
                         role=self.role,
                         output=event.result or "",
                         artifacts=event.artifacts,
@@ -62,11 +65,42 @@ class BackendAgent(Agent):
                     )
                 )
             elif event.status == AgentEventStatus.FAILED:
-                completion.set_exception(RuntimeError(event.error or f"{self.role} backend failed"))
+                completion.set_exception(
+                    RuntimeError(event.error or f"{self.role} backend failed")
+                )
 
-        self.backend.subscribe(handler)
+        async def answer_event_handler(event: AgentEvent) -> None:
+            """Handle ANSWER events from the orchestrator's event bus.
+
+            OrchestratorSession._answer_waiting_question publishes ANSWER events
+            tagged with the role of the agent that asked the question.  The task_id
+            guard ensures we only resume the specific task that is waiting.
+            """
+            if event.status != AgentEventStatus.ANSWER:
+                return
+            if event.task_id != task_id or event.role != self.role:
+                return
+            if _resumed[0]:
+                return
+            if completion.done():
+                return
+            _resumed[0] = True
+            try:
+                await self.backend.resume(event.task_id, event.result or "")
+            except Exception as exc:
+                completion.set_exception(RuntimeError(f"resume failed: {exc}"))
+
+        self.backend.subscribe(backend_event_handler)
+        # Subscribe to ANSWER events for our role from the orchestrator's event bus.
+        # This is how OrchestratorSession delivers user replies to waiting tasks.
+        context.event_bus.subscribe(self.role, answer_event_handler)
+
         try:
-            await self.backend.run(task.description, context={**task.context, "task_id": task.id, **task.metadata})
+            await self.backend.run(
+                task.description,
+                context={**task.context, "task_id": task_id, **task.metadata},
+            )
             return await asyncio.wait_for(completion, timeout=self.timeout)
         finally:
-            self.backend.unsubscribe(handler)
+            self.backend.unsubscribe(backend_event_handler)
+            context.event_bus.unsubscribe(self.role, answer_event_handler)
